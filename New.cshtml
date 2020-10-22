@@ -1,0 +1,199 @@
+﻿@*@{
+        Layout = "~/Views/Shared/_BraintreeLayout.cshtml";
+    }*@
+@using webPortals.Models
+@model Stripe
+@{
+    ViewBag.Title = "New";
+}
+
+<div class="wrapper" style="margin-bottom: 50px;">
+    <div class="checkout container">
+
+        <header>
+            <h1>Make a Payment</h1>
+        </header>
+        @Html.ValidationSummary(false, "", new { @class = "text-danger" })
+        @if (ViewBag.Schedule != "")
+        {
+            <div class="col-lg-12">
+                <div class="alert alert-dismissible alert-success col-lg-8">
+                    <button type="button" class="close" data-dismiss="alert">×</button>
+                    <span>@ViewBag.Assessment</span>
+                </div>
+            </div>
+        }
+        <div class="container">
+            @using (Html.BeginForm("CreateAsync", "Payment", FormMethod.Post, new { @class = "form-horizontal form-wide", role = "form", id = "payment-form" }))
+            {
+                <section>
+                    <div class="form-group form-group-sm">
+                        @Html.LabelFor(m => m.amount, new { @class = "col-md-2 control-label" })
+                        <div class="col-md-10">
+                            <span class="glyphicon glyphicon-usd"></span>
+                            @Html.TextBoxFor(m => m.amount, new { @class = "form-control sum", Value = "0.00", style = "display:inline-block;" })
+                            @Html.ValidationMessageFor(m => m.amount, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        @Html.LabelFor(m => m.Fee, new { @class = "col-md-2 control-label asterisk" })
+                        <div class="col-md-10">
+                            <span class="glyphicon glyphicon-usd"></span>
+                            @Html.TextBoxFor(m => m.Fee, new { @class = "form-control", style = "display:inline-block;", @readonly = "readonly" })
+                            <span class="text-danger">An extra 1% fee will be added for foreign credit cards.</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        @Html.LabelFor(m => m.TotalAmount, new { @class = "col-md-2 control-label" })
+                        <div class="col-md-10">
+                            <span class="glyphicon glyphicon-usd"></span>
+                            <input id="totalAmount" name="TotalAmount" class="form-control" style="display:inline-block;" readonly>
+                            @Html.ValidationMessageFor(m => m.TotalAmount, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                    <button class="button btn btn-default" id="btnNext" type="button"><span>Next</span></button>
+                </section>
+                <section class="sStripe">
+                    <button class="btn btn-lg btn-warning loading">
+                        <span class="glyphicon glyphicon-refresh spinning"></span> Loading...
+                    </button>
+                    <div class="bt-drop-in-wrapper">
+                        <div id="bt-dropin"></div>
+                    </div>
+                    <button class="button btn btn-default" id="btnRedo" type="button"><span>Start Over</span></button>
+                </section>
+
+                @Html.HiddenFor(m => m.Token);
+                @Html.HiddenFor(m => m.PaymentEmail);
+                @Html.HiddenFor(m => m.PublicKey);
+                @Html.HiddenFor(m => m.RequireZipCode);
+                @Html.HiddenFor(m => m.AllowRememberMe);
+                <input type="hidden" id="CompanyName" value="@ViewBag.CompanyName" />
+            }
+            <img id="logo" src="~/Content/Images/SmallLogo.png" width="128" height="128" style="display: none;" />
+        </div>
+    </div>
+</div>
+<div class="col-lg-12">
+    <div>
+        <span class="asterisk">@ViewBag.ConvenienceFee</span>
+    </div>
+    <br />
+    <div>
+        <span class="font-weight-bold">@ViewBag.Disclaimer</span>
+    </div>
+</div>
+@section Scripts {
+    @Scripts.Render("~/bundles/jqueryval")
+    <script src="https://checkout.stripe.com/checkout.js"></script>
+
+    <script>
+    $(document).ready(function () {
+        $('.sStripe').hide();
+        var form = document.getElementById('payment-form');
+        //var logo = $('#logo').attr('src');
+        var handler = StripeCheckout.configure({
+            key: $('#PublicKey').val(),
+            zipCode: $('#RequireZipCode').val().toLowerCase() === "true",
+            //image: logo,
+            name: $('#CompanyName').val(),
+            locale: "auto",
+            description: "Payment",
+            email: $('#PaymentEmail').val(),
+            allowRememberMe: $('#AllowRememberMe').val().toLowerCase() === "true",
+            closed: function () {
+                if ($('#stripeToken').val() === "") {
+                    reloadPage();
+                }
+            },
+            token: function (token) {
+                $('#Token').val(token.id);
+                $('#PaymentEmail').val(token.email);
+                $(form).submit();
+            }
+        });
+
+        $(window).on('popstate', function () {
+            handler.close();
+        });
+
+
+        function addStripeAmount(amt) {
+            handler.open({
+                amount: amt * 100
+            });
+        }
+
+        function reloadPage() {
+            location.reload();
+        }
+
+        $('#btnRedo').on('click', reloadPage);
+
+        $('#btnNext').on('click', function () {
+            var amt = parseFloat($('#totalAmount').val()).toFixed(2);
+            var total = 0.00;
+            $('.sum').each(function () {
+                var val = $(this).val() === '' ? 0.00 : $(this).val();
+                total += parseFloat(val);
+            });
+            var fee = parseFloat($('#Fee').val()).toFixed(2);
+            if ((parseFloat(fee) + parseFloat(total)).toFixed(2) !== parseFloat(amt).toFixed(2)) {
+                $('#totalAmount').after('<span class="text-danger amount-error">The total amount is not correct.  Please enter your values again.</span>');
+                return;
+            }
+            if ($.isNumeric(amt) && amt > .5) {
+                $('.sum').each(function () {
+                    $(this).prop('readonly', true);
+                    $(this).removeClass('sum');
+                });
+                $(this).hide();
+                addStripeAmount(amt);
+            }
+            else {
+                $('#totalAmount').after('<span class="text-danger amount-error">Values must be numeric and greater than 50 cents.</span>');
+            }
+        });
+
+        function addTotals()
+        {
+            var total = 0.00;
+            $('.sum').each(function () {
+                if ($(this).val() === ".")
+                    return;
+
+                var amt = $(this).val() === '' ? 0.00 : $(this).val();
+                total += parseFloat(amt);
+            });
+            total = parseFloat(total).toFixed(2);
+            var fee = parseFloat((total * .035) + .30).toFixed(2);
+            total = (parseFloat(total) + parseFloat(fee)).toFixed(2);
+            $('#Fee').val(fee);
+            $('#totalAmount').val(total);
+        }
+
+        $('.sum').on('focus', function () {
+            $('.amount-error').remove();
+            $(this).val('');
+            addTotals();
+        });
+
+        $('.sum').on('blur', function () {
+            if ($(this).val() === '') {
+                $(this).val("0.00");
+            }
+        });
+
+        $('.sum').on('keyup', function () {
+            var valid = /^\d{0,5}(\.\d{0,2})?$/.test(this.value),
+            val = this.value;
+
+            if (!valid) {
+                console.log("Invalid input!");
+                this.value = val.substring(0, val.length - 1);
+            }
+            addTotals();
+        });
+    });
+    </script>
+}

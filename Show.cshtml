@@ -1,0 +1,54 @@
+﻿@model webPortals.Models.OnlinePayment
+
+@{
+    ViewBag.Title = "Show Detail";
+}
+
+<header>
+    <h1>@ViewBag.Title</h1>
+</header>
+<article class="content compact">
+    <section>
+        <h5>Transaction</h5>
+        <table style="border-collapse: separate; border-spacing: 10px;">
+            <tbody>
+                <tr>
+                    <td>@Html.LabelFor(m => m.TransactionId)</td>
+                    <td>@Html.DisplayFor(m => m.TransactionId)</td>
+                </tr>
+                <tr>
+                    <td>@Html.LabelFor(m => m.MatterId)</td>
+                    <td>@Html.DisplayFor(m => m.MatterId)</td>
+                </tr>
+                <tr>
+                    <td>@Html.LabelFor(m => m.Amount)</td>
+                    <td>@Html.DisplayFor(m => m.Amount)</td>
+                </tr>
+                <tr>
+                    <td>@Html.LabelFor(m => m.Fee)</td>
+                    <td>@Html.DisplayFor(m => m.Fee)<span class="text-danger" style="padding-left:5em">An extra 1% fee has been added for foreign credit cards.</span></td>
+                </tr>
+                <tr>
+                    <td>@Html.LabelFor(m => m.TotalAmount)</td>
+                    <td>@Html.DisplayFor(m => m.TotalAmount)</td>
+                </tr>
+                <tr>
+                    <td>@Html.LabelFor(m => m.TransactionDate)</td>
+                    <td>@Html.DisplayFor(m => m.TransactionDate)</td>
+                </tr>
+            </tbody>
+        </table>
+        <input type="button" id="btnPrint" class="btn btn-default" value="Print" />
+    </section>
+</article>
+@section Scripts {
+<script>
+    $(document).ready(function () {
+        $('#btnPrint').on('click', function () {
+            $(this).hide();
+            window.print()
+            $(this).show();
+        });
+    });
+</script>
+}
